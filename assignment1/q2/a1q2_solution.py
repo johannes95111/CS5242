@@ -14,17 +14,7 @@ def read_csv(filename):
             res.append(row)
     return res
 
-# help function for matrix transpose
-def transpose_mat(mat):
-    res = list()
-    row, col = len(mat), len(mat[0])
-    for m in range(0, col):
-        temp = list()
-        for n in range(0, row):
-            temp.append(mat[n][m])
-        res.append(temp)
-    return res
-
+# help function for lists multiplication
 def mul_list(list1, list2):
     if (len(list1) != len(list2)):
         print("Input lists have different lengths")
@@ -35,6 +25,30 @@ def mul_list(list1, list2):
     return res
 #print(mul_list([1,2,3], [1,0,1]))
 #-> [1, 0, 3]
+
+# help function for matrix transpose
+def transpose_mat(mat):
+    res = list()
+    row, col = len(mat), len(mat[0])
+    for n in range(0, col):
+        temp = list()
+        for m in range(0, row):
+            temp.append(mat[m][n])
+        res.append(temp)
+    return res
+
+# help function for matrix scalar multiplication
+def sca_mat(mat, scalar):
+    res = list()
+    row, col = len(mat), len(mat[0])
+    for m in range(0, row):
+        temp = list()
+        for n in range(0, col):
+            temp.append(mat[m][n]*scalar)
+        res.append(temp)
+    return res
+#print(sca_mat([[1,2,3], [1,1,4]],2))
+#-> [[2, 4, 6], [2, 2, 8]]
 
 # help function for matrices addition
 def add_mat(mat1, mat2):
@@ -91,6 +105,7 @@ def mul_mat(mat1, mat2):
 #t_weights = [[0.5,1,2], [1,0.5,0.5]]
 #print(mul_mat(t_inputs, t_weights))
 #-> [[2.5, 2.0, 3.0]]
+    
 
 # help function to create the identity matrix
 def identity_mat(n):
@@ -230,11 +245,13 @@ def backward_propagate(network, expected):
         errors = list()
         if n==(len(network)-1):
             errors = sub_mat(expected, layer['output'])
+            derivative = softmax_transfer_derivative(layer['output'][0])
         else:
             layer_plus = network[n+1]
             errors = mul_mat(layer_plus['delta'],
                              transpose_mat(layer_plus['weights']))
-        delta = mul_list(errors[0], sigmoid_transfer_derivative(layer['output'][0]))
+            derivative = relu_transfer_derivative(layer['output'][0])
+        delta = mul_list(errors[0], derivative)
         layer['delta'] = [delta]
     pass
 
@@ -242,11 +259,87 @@ network = [{'weights':[[0.13436424411240122], [0.8474337369372327]], 'bias':[[0.
             {'weights':[[0.2550690257394217, 0.4494910647887381]], 'bias':[[0.49543508709194095, 0.651592972722763]], 'output':[[0.6213859615555266, 0.6573693455986976]]}]
 expected = [[0, 1]]
 backward_propagate(network, expected)
-for layer in network:
-    print(layer)
+#for layer in network:
+#    print(layer)
 #-> {'weights': [[0.13436424411240122], [0.8474337369372327]], 'bias': [[0.763774618976614]], 'output': [[0.7105668883115941]], 'delta': [[-0.0005348048046610517]]}
 #-> {'weights': [[0.2550690257394217, 0.4494910647887381]], 'bias': [[0.49543508709194095, 0.651592972722763]], 'output': [[0.6213859615555266, 0.6573693455986976]], 'delta': [[-0.14619064683582808, 0.0771723774346327]]}
 
+# update the neural network weights
+def update_weights(network, inputs, l_rate):
+#    print("update_weights")
+#    print(network)
+    for n in range(len(network)):
+        if n!=0:
+            inputs = network[n-1]['output']
+#        print(inputs)
+#        print(network[n]['weights'])
+#        print("DELTA")
+#        print(network[n]['delta'])
+        temp = sca_mat(mul_mat(transpose_mat(inputs),
+                               network[n]['delta']), l_rate)
+#        print(temp)
+        new_weights = add_mat(temp,network[n]['weights'])
+        temp = sca_mat(network[n]['delta'], l_rate)
+        new_bias = add_mat(temp,network[n]['bias'])
+        network[n]['weights'] = new_weights
+#        print("new weights")
+#        print(new_weights)
+#        print(network[n]['weights'])
+        network[n]['bias'] = new_bias
+#    print(network)
+    return None
+
+def square_error(pred_res, actual_res):
+    cost = 0
+    n = len(pred_res)
+    for i in range(n):
+        cost += (actual_res[i]-pred_res[i])**2
+    return cost
+#print(square_error([1,2,3],[1,1,2]))
+#-> 2
+
+# train the neural network
+def train_nn(network, train_inputs, n_outputs, l_rate, n_epoch):
+    for epoch in range(n_epoch):
+        sum_error = 0
+        for ipt in train_inputs:
+            outputs = forward_feeding(ipt, network)
+            expected = [[0 for i in range(n_outputs)]]
+            error = square_error(outputs[0], expected[0])
+            sum_error += error
+            backward_propagate(network, expected)
+            update_weights(network, ipt, l_rate)
+        print('>epoch=%d, lrate=%.3f, error=%.3f' % (epoch, l_rate, sum_error))
+
+#ntk = init_nn(2, 1, 2)
+#ti = [[[1,2]],[[1,1]],[[3,0]]]
+#n_outputs = 1
+#l_rate = 0.5
+#n_epoch = 1
+#train_nn(ntk, ti, n_outputs, l_rate, n_epoch)
+
+dataset = [[2.7810836,2.550537003,0],
+	[1.465489372,2.362125076,0],
+	[3.396561688,4.400293529,0],
+	[1.38807019,1.850220317,0],
+	[3.06407232,3.005305973,0],
+	[7.627531214,2.759262235,1],
+	[5.332441248,2.088626775,1],
+	[6.922596716,1.77106367,1],
+	[8.675418651,-0.242068655,1],
+	[7.673756466,3.508563011,1]]
+n_inputs = len(dataset[0]) - 1
+n_outputs = len(set([row[-1] for row in dataset]))
+network = init_nn(n_inputs, 2, n_outputs)
+train_inputs = list()
+for rec in dataset:
+    train_inputs.append([rec[0:2]])
+train_nn(network, train_inputs, n_outputs, 0.001, 50)
+#for layer in network:
+#	print(layer)
+
+            
+            
 
 # one hot encoding
 def one_hot_encoding(inputs, n_class):
