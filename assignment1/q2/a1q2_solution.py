@@ -289,58 +289,6 @@ def update_weights(network, inputs, l_rate):
 #    print(network)
     return None
 
-def square_error(pred_res, actual_res):
-    cost = 0
-    n = len(pred_res)
-    for i in range(n):
-        cost += (actual_res[i]-pred_res[i])**2
-    return cost
-#print(square_error([1,2,3],[1,1,2]))
-#-> 2
-
-# train the neural network
-def train_nn(network, train_inputs, n_outputs, l_rate, n_epoch):
-    for epoch in range(n_epoch):
-        sum_error = 0
-        for ipt in train_inputs:
-            outputs = forward_feeding(ipt, network)
-            expected = [[0 for i in range(n_outputs)]]
-            error = square_error(outputs[0], expected[0])
-            sum_error += error
-            backward_propagate(network, expected)
-            update_weights(network, ipt, l_rate)
-        print('>epoch=%d, lrate=%.3f, error=%.3f' % (epoch, l_rate, sum_error))
-
-#ntk = init_nn(2, 1, 2)
-#ti = [[[1,2]],[[1,1]],[[3,0]]]
-#n_outputs = 1
-#l_rate = 0.5
-#n_epoch = 1
-#train_nn(ntk, ti, n_outputs, l_rate, n_epoch)
-
-dataset = [[2.7810836,2.550537003,0],
-	[1.465489372,2.362125076,0],
-	[3.396561688,4.400293529,0],
-	[1.38807019,1.850220317,0],
-	[3.06407232,3.005305973,0],
-	[7.627531214,2.759262235,1],
-	[5.332441248,2.088626775,1],
-	[6.922596716,1.77106367,1],
-	[8.675418651,-0.242068655,1],
-	[7.673756466,3.508563011,1]]
-n_inputs = len(dataset[0]) - 1
-n_outputs = len(set([row[-1] for row in dataset]))
-network = init_nn(n_inputs, 2, n_outputs)
-train_inputs = list()
-for rec in dataset:
-    train_inputs.append([rec[0:2]])
-train_nn(network, train_inputs, n_outputs, 0.001, 50)
-#for layer in network:
-#	print(layer)
-
-            
-            
-
 # one hot encoding
 def one_hot_encoding(inputs, n_class):
     res = list()
@@ -369,6 +317,72 @@ def cross_entropy_cost(pred_res, actual_res):
 #                         [0,0,1,0]))
 #-> 0.6632621566107613
 
+def square_error(pred_res, actual_res):
+    cost = 0
+    n = len(pred_res)
+    for i in range(n):
+        cost += (actual_res[i]-pred_res[i])**2
+    return cost
+#print(square_error([1,2,3],[1,1,2]))
+#-> 2
+
+## train the neural network
+#def train_nn_backup(network, train_inputs, n_outputs, l_rate, n_epoch):
+#    for epoch in range(n_epoch):
+#        sum_error = 0
+#        for ipt in train_inputs:
+#            outputs = forward_feeding(ipt, network)
+#            expected = [[0 for i in range(n_outputs)]]
+#            #error = square_error(outputs[0], expected[0])
+#            error = cross_entropy_cost(outputs[0], expected[0])
+#            sum_error += error
+#            backward_propagate(network, expected)
+#            update_weights(network, ipt, l_rate)
+#        print('>epoch=%d, lrate=%.3f, error=%.3f' % (epoch, l_rate, sum_error))
+
+# train the neural network
+def train_nn(network, train_inputs, expected_outputs, l_rate, n_epoch):
+    for epoch in range(n_epoch):
+        sum_error = 0
+        for n in range(len(train_inputs)):
+            outputs = forward_feeding(train_inputs[n], network)
+            real = expected_outputs[n]
+            error = cross_entropy_cost(outputs[0], real[0])
+            sum_error += error
+            backward_propagate(network, real)
+            update_weights(network, train_inputs[n], l_rate)
+        print('>epoch=%d, lrate=%.3f, error=%.3f' % (epoch, l_rate, sum_error))
+
+#ntk = init_nn(2, 1, 2)
+#ti = [[[1,2]],[[1,1]],[[3,0]]]
+#n_outputs = 1
+#l_rate = 0.5
+#n_epoch = 1
+#train_nn(ntk, ti, n_outputs, l_rate, n_epoch)
+
+dataset = [[2.7810836,2.550537003,0],
+	[1.465489372,2.362125076,0],
+	[3.396561688,4.400293529,0],
+	[1.38807019,1.850220317,0],
+	[3.06407232,3.005305973,0],
+	[7.627531214,2.759262235,1],
+	[5.332441248,2.088626775,1],
+	[6.922596716,1.77106367,1],
+	[8.675418651,-0.242068655,1],
+	[7.673756466,3.508563011,1]]
+n_inputs = len(dataset[0]) - 1
+n_outputs = len(set([row[-1] for row in dataset]))
+network = init_nn(n_inputs, 2, n_outputs)
+train_inputs = list()
+for rec in dataset:
+    train_inputs.append([rec[0:2]])
+expected_opts = list()
+for rec in dataset:
+    expected_opts.append([[0,1]])
+train_nn(network, train_inputs, expected_opts, 0.001, 50)
+#train_nn_backup(network, train_inputs, n_outputs, 0.001, 50)
+#for layer in network:
+#	print(layer)
 
 
 nn1 = init_nn(3, 4, 5)
