@@ -223,8 +223,8 @@ network_c = init_nn(14, 4, 14, 14, 14, 14, 14, 14, 14,
                     14, 14, 14, 14, 14, 14, 14)
 #k = 100
 #train_nn(network_c, x_train[0:k], y_train[0:k], x_test[0:k], y_test[0:k], 0.1, 500)
-res_c = train_nn(network_c, x_train, y_train, x_test, y_test, 0.001, 200)
-write_csv('network_c_output_stat_200.csv', res_c['stat'])
+#res_c = train_nn(network_c, x_train, y_train, x_test, y_test, 0.001, 200)
+#write_csv('network_c_output_stat_200.csv', res_c['stat'])
 
 # Part 2
 def read_wb_csv(filename, ):
@@ -238,19 +238,51 @@ def read_wb_csv(filename, ):
             res[key].append([float(e) for e in row[1:]])
     return res
 
-#X=[-1, 1, 1, 1, -1, -1, 1, -1, 1, 1, -1, -1, 1, 1]
-#label = [3]
-#weights = read_wb_csv('./b/w-100-40-4.csv')
-#bias = read_wb_csv('./b/b-100-40-4.csv')
-#nn = list()
-#for i in range(len(weights.keys())):
-#    layer = {}
-#    layer['weights'] = weights[list(weights.keys())[i]]
-#    layer['bias'] = bias[list(bias.keys())[i]]
-#    nn.append(layer)
-#ipt = [X]
-#opt = forward_feeding(ipt, nn)
-#actual = one_hot_encoding(label, 4)[0]
+X=[-1, 1, 1, 1, -1, -1, 1, -1, 1, 1, -1, -1, 1, 1]
+label = [3]
+weights = read_wb_csv('./b/w-100-40-4.csv')
+bias = read_wb_csv('./b/b-100-40-4.csv')
+network = list()
+for i in range(len(weights.keys())):
+    layer = {}
+    layer['weights'] = np.array(weights[list(weights.keys())[i]])
+    layer['bias'] = np.array(bias[list(bias.keys())[i]])
+    network.append(layer)
+network = np.array(network)
+ipt = [X]
+
+
+def forward_feeding_no_relu(inputs, network):
+    res = inputs
+    for n in range(len(network)):
+        layer = network[n]
+        res = linear_activate(res, layer['weights'], layer['bias'])
+        if n==(len(network)-1):
+            res[0] = softmax_transfer(res[0])
+#        else:
+#            res[0] = relu_transfer(res[0])
+        layer['output'] = res
+    return res
+
+opt = forward_feeding_no_relu(ipt, network) # opt -> [[0, 0, 1, 0]]
+#opt = forward_feeding(ipt, network) # opt -> [[0, 0, 1, 0]]
+actual = np.array(one_hot_encoding(label, 4)[0])
+weights_g = []
+bias_g = []
+network[2]['output'] = [[0,0,1,0]]
+#opt = np.array([[0,0,1,0]])
+for n in reversed(range(len(network))):
+    print(n)
+    layer = network[n]
+    if n==(len(network)-1):
+        weights_g.append(np.dot(network[n-1]['output'].T, (opt-actual)))
+        bias_g.append(opt-actual)
+    else:
+        temp = np.dot(weights_g[-1], network[n+1]['weights'].T)
+        weights_g.append(temp)
+        temp = np.dot(bias_g[-1], network[n+1]['weights'].T)
+        bias_g.append(temp)
+    pass
 #error = cross_entropy_cost(opt[0], actual[0])
 
 #train_nn(nn, [X], one_hot_encoding(label, 4), 0.001, 10)
