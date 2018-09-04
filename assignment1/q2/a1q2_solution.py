@@ -115,12 +115,18 @@ def cross_entropy_cost(pred, actual):
 
 # train the neural network
 def train_nn(network, x_train, y_train, x_test, y_test, l_rate, n_epoch):
+    train_n_inputs = len(x_train)
+    test_n_inputs = len(x_test)
+    
+#    shuffle_train_index = np.arange(train_n_inputs)
+#    np.random.shuffle(shuffle_train_index)
+#    x_train = x_train[shuffle_train_index]
+#    y_train = y_train[shuffle_train_index]
+    
     res = {'stat':[], 'trained_nn': None}
     for epoch in range(n_epoch):
-        train_n_inputs = len(x_train)
         train_error_sum = 0
         train_correct = 0
-        test_n_inputs = len(x_test)
         test_error_sum = 0
         test_correct = 0
         for m in range(train_n_inputs):
@@ -193,27 +199,32 @@ def write_csv(filename, res):
             writer.writerow(w)
     
 # Part 1
-np.random.seed(11)
+#np.random.seed(11)
 x_train = np.array(read_x_csv('x_train.csv'))
 y_train = np.array(one_hot_encoding(read_y_csv('y_train.csv'), 4))
 x_test = np.array(read_x_csv('x_test.csv'))
 y_test = np.array(one_hot_encoding(read_y_csv('y_test.csv'), 4))
 network_a = init_nn(14, 4, 100, 40)
 #train_nn(network_a, x_train[0:10], y_train[0:10], 0.001, 10)
+#k = 20
+#train_nn(network_a, x_train[0:k], y_train[0:k], x_test[0:k], y_test[0:k], 0.001, 200)
 #res_a = train_nn(network_a, x_train, y_train, x_test, y_test, 0.001,600)
 #write_csv('network_a_output_stat.csv', res_a['stat'])
 
 network_b = init_nn(14, 4, 28, 28, 28, 28, 28, 28, 40)
 #train_nn(network_b, x_train[0:10], y_train[0:10], 0.01, 10)
-res_b = train_nn(network_b, x_train, y_train, x_test, y_test, 0.001, 200)
-write_csv('network_b_output_stat_600.csv', res_b['stat'])
+#res_b = train_nn(network_b, x_train, y_train, x_test, y_test, 0.001, 200)
+#write_csv('network_b_output_stat_600.csv', res_b['stat'])
 
-#network_c = init_nn(14, 4, 14, 14, 14, 14, 14, 14, 14,
-#                    14, 14, 14, 14, 14, 14, 14,
-#                    14, 14, 14, 14, 14, 14, 14,
-#                    14, 14, 14, 14, 14, 14, 14)
-##train_nn(network_c, x_train[0:10], y_train[0:10], 0.01, 10)
-#train_nn(network_c, x_train, y_train, 0.001, 10)
+np.random.seed(13)
+network_c = init_nn(14, 4, 14, 14, 14, 14, 14, 14, 14,
+                    14, 14, 14, 14, 14, 14, 14,
+                    14, 14, 14, 14, 14, 14, 14,
+                    14, 14, 14, 14, 14, 14, 14)
+#k = 100
+#train_nn(network_c, x_train[0:k], y_train[0:k], x_test[0:k], y_test[0:k], 0.1, 500)
+res_c = train_nn(network_c, x_train, y_train, x_test, y_test, 0.001, 200)
+write_csv('network_c_output_stat_200.csv', res_c['stat'])
 
 # Part 2
 def read_wb_csv(filename, ):
