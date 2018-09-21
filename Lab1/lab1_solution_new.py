@@ -1,30 +1,29 @@
 import re
 from math import log, sqrt
-from pyspark.sql import SparkSession
+from pyspark import SparkConf, SparkContext
+from pyspark.sql import SQLContext
 from pyspark.sql.functions import monotonically_increasing_id
 
 ###### step 0: configuration and setup
 ### define input files path
 stop_words_filepath = './stopwords.txt'
 query_filepath = './query.txt'
-doc_filepath = './kindle_review/xbg.json'
+doc_filepath = './kindle_review/xaa.json'
 output_filepath = './query_output.txt'
 ### define top-k number
 top_k = 20
-### initialize spark session
-spark = SparkSession \
-    .builder \
-    .appName("Python Spark Program") \
-    .config("spark.some.config.option", "some-value") \
-    .getOrCreate()
+### initialize Spark Context and SQL Context
+conf = SparkConf()
+sc = SparkContext(conf=conf)
+sqlContext = SQLContext(sc)
 ### read in stop words as a list
 stop_words = []
 with open(stop_words_filepath) as inputfile:
     for line in inputfile:
         stop_words.extend(line.strip().split('\n'))
 ### read in query and document as SQL dataframe 
-df_query = spark.read.text(query_filepath).withColumn('query_id', monotonically_increasing_id()+1)
-df_doc = spark.read.json(doc_filepath)
+df_query = sqlContext.read.text(query_filepath).withColumn('query_id', monotonically_increasing_id()+1)
+df_doc = sqlContext.read.json(doc_filepath)
 
 ###### step 1: compute TF of every word in a review
 ### user defined function to create document RDD
@@ -84,16 +83,20 @@ rev_query_rdd = query_rdd.map(lambda x: (x[1], x[0]))
 zero_tf_idf_norm = tf_idf_norm.map(lambda x: (0, (x[0][0],x[0][1],x[1])))
 ### zero_query_rdd RDD format: [(0, query_id)...]
 zero_query_rdd = query_rdd.groupByKey().map(lambda x: (0, x[0]))
+### summary_rdd_zero_temp RDD format: [(0/1, (doc_id, word, tf_idf_norm))...]
+summary_rdd_zero_temp = zero_tf_idf_norm.join(zero_query_rdd)
 # summary_rdd_zero RDD format: [((query_id, doc_id, word, tf_idf_norm), 0)...]
-summary_rdd_zero = zero_tf_idf_norm.join(zero_query_rdd).map(lambda x:
-    ((x[1][1],x[1][0][0],x[1][0][1],x[1][0][2]),(x[0])))
+summary_rdd_zero = summary_rdd_zero_temp.map(lambda x: ((x[1][1],x[1][0][0],x[1][0][1],x[1][0][2]),(x[0])))
 ### word_tf_idf_norm RDD format: [(word, (doc_id, tf_idf_norm))]
 word_tf_idf_norm = tf_idf_norm.map(lambda x: (x[0][1], (x[0][0], x[1])))
+### summary_rdd_one_temp RDD format: [(word, (query_id, (doc_id, tf_idf_norm)))...]
+summary_rdd_one_temp = rev_query_rdd.join(word_tf_idf_norm)
 ### summary_rdd_one RDD format: [((query_id, doc_id, word, tf_idf_norm), 1)...]
-summary_rdd_one = rev_query_rdd.join(word_tf_idf_norm).map(lambda x:
-    ((x[1][0],x[1][1][0],x[0],x[1][1][1]),1))
-### summary_rdd RDD format: [((query_id, doc_id, word, tf_idf_norm), 0/1)...]
-summary_rdd = summary_rdd_zero.union(summary_rdd_one).reduceByKey(lambda n1, n2: (n1 + n2))
+summary_rdd_one = summary_rdd_one_temp.map(lambda x: ((x[1][0],x[1][1][0],x[0],x[1][1][1]),1))
+### summary_rdd_union RDD format: [((query_id, doc_id, word, tf_idf_norm), 0/1)...]
+summary_rdd_union = summary_rdd_zero.union(summary_rdd_one)
+### summary_rdd RDD function: [((query_id, doc_id, word, tf_idf_norm), 0/1)...]
+summary_rdd = summary_rdd_union.reduceByKey(lambda n1, n2: (n1 + n2))
 ### summary_rdd_temp RDD format: [((query_id, doc_id), (tf_idf_norm, 0/1))]
 summary_rdd_temp = summary_rdd.map(lambda x: ((x[0][0], x[0][1]), (x[0][3], x[1])))
 ### summary_vec RDD format: [((query_id, doc_id), [(tf_idf_norm, 0/1)...])...]
@@ -123,8 +126,9 @@ summary_res_sorted = summary_res.map(lambda x: (x[0], sorted(x[1], key=lambda i:
 summary_res_top_k = summary_res_sorted.map(lambda x: (x[0], x[1][:top_k]))
 ### collect results from summary_res_top_k and as a list
 collect_res_top_k = summary_res_top_k.collect()
-### write results to output text file
+### sort results by query_id
 collect_res_top_k.sort(key=lambda i: i[0])
+### write results to output text file
 with open(output_filepath, 'w') as outputfile:
     outputfile.write("query_id, document_id, relevance_score\n")
     for res in collect_res_top_k:
@@ -133,5 +137,5 @@ with open(output_filepath, 'w') as outputfile:
             line = '{}, {}, {}\n'.format(query_id, rec[0], rec[1])
             outputfile.write(line)
 
-### close spark session
-spark.stop()
+### close Spark Context
+sc.stop()
